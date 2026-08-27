@@ -14,26 +14,34 @@ jobs:
       - name: Set up Xcode Version
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
+      - name: Install Tuist
+        run: |
+          # Instalamos Tuist en la Mac virtual usando el instalador oficial de su organizacion
+          curl -Ls https://tuist.io | bash
+          # Forzamos a que este disponible en el PATH del sistema
+          echo "/Users/runner/.tuist/bin" >> $GITHUB_PATH
+
+      - name: Generate Xcode Project with Tuist
+        run: |
+          # Ejecutamos tuist para que lea Workspace.swift y genere el proyecto real de Xcode (.xcworkspace)
+          tuist generate
+
       - name: Find Workspace and Build
         run: |
-          # Búsqueda profunda en todo el repositorio para localizar el workspace
           WORKSPACE=$(find . -name "*.xcworkspace" -o -name "*.swiftworkspace" | head -n 1)
-          echo "Workspace encontrado en ruta: $WORKSPACE"
+          echo "Workspace generado en ruta: $WORKSPACE"
           
           if [ -z "$WORKSPACE" ]; then
-            echo "Error critico: No se encontro ningun archivo .xcworkspace o .swiftworkspace en todo el repositorio."
-            echo "Asegurate de haber subido la carpeta completa que te dio Median."
+            echo "Error critico: No se pudo generar el espacio de trabajo de Xcode tras correr Tuist."
             exit 1
           fi
           
-          # Buscamos de forma automatica el archivo de esquema (.xcodeproj) para extraer su nombre
           XCODEPROJ=$(find . -name "*.xcodeproj" | head -n 1)
           SCHEME=$(xcodebuild -list -project "$XCODEPROJ" | grep -A 10 "Schemes:" | tail -n +2 | xargs | awk '{print $1}')
-          echo "Esquema (Scheme) detectado automaticamente: $SCHEME"
+          echo "Esquema detectado automaticamente: $SCHEME"
           
           if [ -z "$SCHEME" ]; then
             SCHEME="App"
-            echo "No se detecto esquema, usando el valor por defecto: App"
           fi
           
           xcodebuild -workspace "$WORKSPACE" \
