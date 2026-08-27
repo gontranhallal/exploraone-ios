@@ -26,36 +26,29 @@ jobs:
         run: |
           tuist install
 
-      - name: Find Workspace and Build
+      - name: Compile Project with Tuist
         run: |
-          WORKSPACE=$(find . -name "*.xcworkspace" -o -name "*.swiftworkspace" | head -n 1)
-          echo "Workspace localizado en ruta: $WORKSPACE"
-          
-          if [ -z "$WORKSPACE" ]; then
-            echo "Error critico: No se localizo el espacio de trabajo."
-            exit 1
-          fi
-          
-          # Listamos los schemes del workspace y tomamos el primero que no sea una dependencia del sistema
-          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list | grep -A 20 "Schemes:" | tail -n +2 | xargs | awk '{print $1}')
-          echo "Esquema (Scheme) detectado automaticamente en el Workspace: $SCHEME"
-          
-          if [ -z "$SCHEME" ] || [ "$SCHEME" = "Loading..." ]; then
-            SCHEME="App"
-            echo "No se pudo extraer de forma limpia, intentando con el valor por defecto: App"
-          fi
-          
-          xcodebuild -workspace "$WORKSPACE" \
-                     -scheme "$SCHEME" \
-                     -configuration Release \
-                     -archivePath $HOME/build/App.xcarchive \
-                     clean archive \
-                     CODE_SIGNING_ALLOWED=NO
+          # Compilamos en modo Release usando el motor nativo de Tuist
+          tuist build --configuration Release
 
       - name: Export Unsigned IPA
         run: |
+          # Buscamos la aplicacion compilada (.app) en el directorio de salida de Tuist y Xcode
+          APP_PATH=$(find $HOME/Library/Developer/Xcode/DerivedData -name "*.app" | grep -v "Index.noindex" | head -n 1)
+          echo "Aplicacion localizada en: $APP_PATH"
+          
+          if [ -z "$APP_PATH" ]; then
+            # Si no esta en la ruta global por defecto, buscamos localmente
+            APP_PATH=$(find . -name "*.app" | head -n 1)
+          fi
+          
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: No se pudo localizar el binario compilado .app"
+            exit 1
+          fi
+          
           mkdir -p payload/Payload
-          cp -r $HOME/build/App.xcarchive/Products/Applications/*.app payload/Payload/
+          cp -r "$APP_PATH" payload/Payload/
           cd payload
           zip -r ../App-Unsigned.ipa Payload
           
