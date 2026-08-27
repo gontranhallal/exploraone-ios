@@ -16,16 +16,28 @@ jobs:
 
       - name: Find Workspace and Build
         run: |
+          # Búsqueda profunda en todo el repositorio para localizar el workspace
           WORKSPACE=$(find . -name "*.xcworkspace" -o -name "*.swiftworkspace" | head -n 1)
-          echo "Workspace encontrado: $WORKSPACE"
+          echo "Workspace encontrado en ruta: $WORKSPACE"
           
           if [ -z "$WORKSPACE" ]; then
-            echo "No se encontro ningun workspace (.xcworkspace o .swiftworkspace)"
+            echo "Error critico: No se encontro ningun archivo .xcworkspace o .swiftworkspace en todo el repositorio."
+            echo "Asegurate de haber subido la carpeta completa que te dio Median."
             exit 1
           fi
           
+          # Buscamos de forma automatica el archivo de esquema (.xcodeproj) para extraer su nombre
+          XCODEPROJ=$(find . -name "*.xcodeproj" | head -n 1)
+          SCHEME=$(xcodebuild -list -project "$XCODEPROJ" | grep -A 10 "Schemes:" | tail -n +2 | xargs | awk '{print $1}')
+          echo "Esquema (Scheme) detectado automaticamente: $SCHEME"
+          
+          if [ -z "$SCHEME" ]; then
+            SCHEME="App"
+            echo "No se detecto esquema, usando el valor por defecto: App"
+          fi
+          
           xcodebuild -workspace "$WORKSPACE" \
-                     -scheme App \
+                     -scheme "$SCHEME" \
                      -configuration Release \
                      -archivePath $HOME/build/App.xcarchive \
                      clean archive \
