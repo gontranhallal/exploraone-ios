@@ -24,12 +24,10 @@ jobs:
         env:
           HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
         run: |
-          # Usamos 'tuist install' para descargar las dependencias vinculadas a tu Workspace.swift
           tuist install
 
       - name: Find Workspace and Build
         run: |
-          # Buscamos el archivo de espacio de trabajo (.xcworkspace o .swiftworkspace)
           WORKSPACE=$(find . -name "*.xcworkspace" -o -name "*.swiftworkspace" | head -n 1)
           echo "Workspace localizado en ruta: $WORKSPACE"
           
@@ -38,9 +36,14 @@ jobs:
             exit 1
           fi
           
-          # Forzamos un esquema base compatible con los empaquetadores web de Median
-          SCHEME="App"
-          echo "Usando el esquema de compilacion: $SCHEME"
+          # Listamos los schemes del workspace y tomamos el primero que no sea una dependencia del sistema
+          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list | grep -A 20 "Schemes:" | tail -n +2 | xargs | awk '{print $1}')
+          echo "Esquema (Scheme) detectado automaticamente en el Workspace: $SCHEME"
+          
+          if [ -z "$SCHEME" ] || [ "$SCHEME" = "Loading..." ]; then
+            SCHEME="App"
+            echo "No se pudo extraer de forma limpia, intentando con el valor por defecto: App"
+          fi
           
           xcodebuild -workspace "$WORKSPACE" \
                      -scheme "$SCHEME" \
