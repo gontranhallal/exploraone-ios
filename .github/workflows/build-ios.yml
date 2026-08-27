@@ -16,33 +16,31 @@ jobs:
 
       - name: Install Tuist via Homebrew
         env:
-          HOMEBREW_NO_REQUIRE_TAP_TRUST: "1" # Bypass para evitar que Homebrew detenga la instalacion
+          HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
         run: |
           brew install tuist
 
-      - name: Generate Xcode Project with Tuist
+      - name: Resolve Dependencies with Tuist
         env:
           HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
         run: |
-          tuist generate
+          # Usamos 'tuist install' para descargar las dependencias vinculadas a tu Workspace.swift
+          tuist install
 
       - name: Find Workspace and Build
         run: |
+          # Buscamos el archivo de espacio de trabajo (.xcworkspace o .swiftworkspace)
           WORKSPACE=$(find . -name "*.xcworkspace" -o -name "*.swiftworkspace" | head -n 1)
-          echo "Workspace generado en ruta: $WORKSPACE"
+          echo "Workspace localizado en ruta: $WORKSPACE"
           
           if [ -z "$WORKSPACE" ]; then
-            echo "Error critico: No se pudo generar el espacio de trabajo de Xcode tras correr Tuist."
+            echo "Error critico: No se localizo el espacio de trabajo."
             exit 1
           fi
           
-          XCODEPROJ=$(find . -name "*.xcodeproj" | head -n 1)
-          SCHEME=$(xcodebuild -list -project "$XCODEPROJ" | grep -A 10 "Schemes:" | tail -n +2 | xargs | awk '{print $1}')
-          echo "Esquema detectado automaticamente: $SCHEME"
-          
-          if [ -z "$SCHEME" ]; then
-            SCHEME="App"
-          fi
+          # Forzamos un esquema base compatible con los empaquetadores web de Median
+          SCHEME="App"
+          echo "Usando el esquema de compilacion: $SCHEME"
           
           xcodebuild -workspace "$WORKSPACE" \
                      -scheme "$SCHEME" \
