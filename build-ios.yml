@@ -1,0 +1,37 @@
+yamlname: Build Unsigned iOS IPA
+
+on:
+  workflow_dispatch: # Esto te permite activar el botón de compilar manualmente desde la web de GitHub
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode Version
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Build iOS Archive
+        run: |
+          xcodebuild -workspace ios/App.xcworkspace \
+                     -scheme App \
+                     -configuration Release \
+                     -archivePath $HOME/build/App.xcarchive \
+                     clean archive \
+                     CODE_SIGNING_ALLOWED=NO
+
+      - name: Export Unsigned IPA
+        run: |
+          mkdir -p payload/Payload
+          cp -r $HOME/build/App.xcarchive/Products/Applications/*.app payload/Payload/
+          cd payload
+          zip -r ../App-Unsigned.ipa Payload
+          
+      - name: Upload IPA Artifact
+        uses: actions/artifacts/upload-artifact@v4
+        with:
+          name: App-Unsigned-IPA
+          path: App-Unsigned.ipa
